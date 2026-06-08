@@ -65,19 +65,22 @@
     function addMessage(data) {
         const div = document.createElement('div');
         div.className = `mb-2 ${data.username === username ? 'text-end' : ''}`;
+
+        // Определяем цвет бейджа в зависимости от того, кто пишет
+        let badgeClass = 'bg-secondary';
+        let roleIcon = '';
+        if (data.username === username) {
+            badgeClass = 'bg-primary';
+        } else if (data.role === 'teacher') {
+            badgeClass = 'bg-success';
+            roleIcon = ' 👨‍🏫';
+        }
+
         div.innerHTML = `<small class="text-muted">${data.time}</small><br>
-                         <span class="badge ${data.username === username ? 'bg-primary' : 'bg-secondary'}">${data.username}</span>
+                         <span class="badge ${badgeClass}">${data.username}${roleIcon}</span>
                          <div class="d-inline-block bg-light p-2 rounded">${data.text}</div>`;
         document.getElementById('chat-messages').appendChild(div);
         document.getElementById('chat-messages').scrollTop = 999999;
-    }
-
-    function sendMessage() {
-        const input = document.getElementById('msg-input');
-        if(input.value.trim()) {
-            socket.emit('send_message', {username, text: input.value});
-            input.value = '';
-        }
     }
 
     // 3. WebRTC Звонки

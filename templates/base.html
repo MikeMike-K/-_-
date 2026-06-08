@@ -18,6 +18,9 @@
             <a class="navbar-brand" href="/">📚 SchoolPortal</a>
             <div class="d-flex align-items-center">
                 {% if session.user_id %}
+                    <a href="{{ url_for('chat') }}" class="btn btn-outline-success btn-sm me-2">
+                        💬 Чат
+                    </a>
                     <a href="{{ url_for('profile') }}" class="btn btn-outline-primary btn-sm me-2">
                         👤 Профиль
                     </a>

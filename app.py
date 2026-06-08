@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -214,6 +214,19 @@ def chat():
     users = User.query.all() # Список всех пользователей для звонков
     return render_template('chat.html', user=user, users=users)
 
+@app.route('/chat/history')
+@login_required
+def chat_history():
+    messages = Message.query.order_by(Message.timestamp.asc()).all()
+    result = []
+    for msg in messages:
+        result.append({
+            'username': msg.sender.username,
+            'text': msg.text,
+            'time': msg.timestamp.strftime('%H:%M'),
+            'role': msg.sender.role
+        })
+    return jsonify(result)
 
 # --- ЧАТ ---
 @socketio.on('join')
@@ -229,11 +242,15 @@ def handle_message(data):
     db.session.add(msg)
     db.session.commit()
 
+    # Получаем роль пользователя
+    user = User.query.get(session['user_id'])
+
     # Отправляем всем в комнате
     emit('new_message', {
         'username': data['username'],
         'text': data['text'],
-        'time': datetime.utcnow().strftime('%H:%M')
+        'time': datetime.utcnow().strftime('%H:%M'),
+        'role': user.role  # Передаем роль
     }, room='classroom')
 
 
