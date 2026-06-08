@@ -108,10 +108,12 @@ def register():
         password = request.form['password']
         role = request.form['role']
 
+        # Проверяем, существует ли пользователь
         if User.query.filter_by(username=username).first():
             flash('Пользователь с таким именем уже существует', 'danger')
             return redirect(url_for('register'))
 
+        # Создаем нового пользователя
         new_user = User(username=username, role=role)
         new_user.set_password(password)
 
@@ -119,10 +121,11 @@ def register():
             db.session.add(new_user)
             db.session.commit()
             flash('Регистрация успешна! Теперь войдите.', 'success')
-            return redirect(url_for('login'))
-        except:
+            return redirect(url_for('login'))  # ВАЖНО: редирект на login
+        except Exception as e:
             db.session.rollback()
-            flash('Ошибка при регистрации', 'danger')
+            flash(f'Ошибка при регистрации: {str(e)}', 'danger')
+            print(f"ERROR: {e}")  # Добавим вывод ошибки в логи
 
     return render_template('register.html')
 
