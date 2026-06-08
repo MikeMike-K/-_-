@@ -184,6 +184,8 @@ def download_file(file_id):
     return send_from_directory(app.config['UPLOAD_FOLDER'], file_item.filename, as_attachment=True,
                                download_name=file_item.original_name)
 
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     with app.app_context():
