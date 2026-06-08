@@ -22,11 +22,9 @@ db = SQLAlchemy(app)
 
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime
-import eventlet
-eventlet.monkey_patch()
 
-# Инициализация SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+# Используем threading - работает везде без дополнительных библиотек
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Модель для хранения сообщений в БД
 class Message(db.Model):

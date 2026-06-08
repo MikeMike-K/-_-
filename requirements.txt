@@ -3,5 +3,5 @@ flask-sqlalchemy
 werkzeug
 gunicorn
 psycopg2-binary
+boto3
 flask-socketio
-eventlet
