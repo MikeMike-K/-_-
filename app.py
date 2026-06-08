@@ -6,7 +6,13 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my-secret-key-123'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///school.db'
+# Используем PostgreSQL с Render, если переменная окружения есть, иначе SQLite для локальной работы
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    # Render иногда дает ссылку с postgres://, а SQLAlchemy требует postgresql://
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///school.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
