@@ -187,6 +187,12 @@ def download_file(file_id):
     return send_from_directory(app.config['UPLOAD_FOLDER'], file_item.filename, as_attachment=True,
                                download_name=file_item.original_name)
 
+@app.route('/profile')
+@login_required
+def profile():
+    user = User.query.get(session['user_id'])
+    return render_template('profile.html', user=user)
+
 def init_db():
     with app.app_context():
         db.create_all()
