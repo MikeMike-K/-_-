@@ -20,6 +20,22 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 
 db = SQLAlchemy(app)
 
+from flask_socketio import SocketIO, emit, join_room, leave_room
+from datetime import datetime
+import eventlet
+eventlet.monkey_patch()
+
+# Инициализация SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+
+# Модель для хранения сообщений в БД
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    text = db.Column(db.String(1000), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    sender = db.relationship('User', backref=db.backref('messages', lazy=True))
+
 
 # --- МОДЕЛИ ---
 class User(db.Model):
@@ -192,6 +208,42 @@ def download_file(file_id):
 def profile():
     user = User.query.get(session['user_id'])
     return render_template('profile.html', user=user)
+
+@app.route('/chat')
+@login_required
+def chat():
+    user = User.query.get(session['user_id'])
+    users = User.query.all() # Список всех пользователей для звонков
+    return render_template('chat.html', user=user, users=users)
+
+
+# --- ЧАТ ---
+@socketio.on('join')
+def on_join(data):
+    join_room('classroom')
+    emit('status', {'msg': f'{data["username"]} вошел в чат'}, room='classroom')
+
+
+@socketio.on('send_message')
+def handle_message(data):
+    # Сохраняем в БД
+    msg = Message(sender_id=session['user_id'], text=data['text'])
+    db.session.add(msg)
+    db.session.commit()
+
+    # Отправляем всем в комнате
+    emit('new_message', {
+        'username': data['username'],
+        'text': data['text'],
+        'time': datetime.utcnow().strftime('%H:%M')
+    }, room='classroom')
+
+
+# --- ЗВОНКИ (WebRTC Signaling) ---
+@socketio.on('call_signal')
+def handle_signal(data):
+    # Пересылаем сигнал другому пользователю
+    emit('call_signal', data, room=data['target_room'])
 
 def init_db():
     with app.app_context():

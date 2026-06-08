@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <!-- Список пользователей -->
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">👥 Участники</div>
+            <ul class="list-group list-group-flush">
+                {% for u in users %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ u.username }} {% if u.role == 'teacher' %}👨‍🏫{% else %}🎓{% endif %}
+                    {% if u.id != user.id %}
+                    <button class="btn btn-sm btn-success" onclick="startCall({{ u.id }})">📞</button>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Чат и Звонки -->
+    <div class="col-md-9">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">💬 Общий чат класса</div>
+            <div class="card-body" id="chat-messages" style="height: 400px; overflow-y: auto;">
+                <!-- Сообщения будут здесь -->
+            </div>
+            <div class="card-footer">
+                <div class="input-group">
+                    <input type="text" id="msg-input" class="form-control" placeholder="Введите сообщение..." onkeydown="if(event.key==='Enter') sendMessage()">
+                    <button class="btn btn-primary" onclick="sendMessage()">Отправить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Панель звонка -->
+        <div class="card shadow-sm mt-3" id="call-panel" style="display:none;">
+            <div class="card-header bg-danger text-white">📞 Идет звонок: <span id="call-target"></span></div>
+            <div class="card-body text-center">
+                <audio id="remote-audio" autoplay></audio>
+                <p>Микрофон активен. Нажмите "Завершить" для окончания.</p>
+                <button class="btn btn-danger" onclick="endCall()">📵 Завершить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    const username = "{{ user.username }}";
+    const userId = {{ user.id }};
+    let peerConnection, localStream;
+
+    // 1. Подключение к чату
+    socket.emit('join', {username});
+
+    // Загрузка истории
+    fetch('/chat/history') // (Опционально: можно добавить маршрут для истории)
+        .then(r => r.json())
+        .then(msgs => msgs.forEach(addMessage));
+
+    // 2. Обработка сообщений
+    socket.on('new_message', addMessage);
+    function addMessage(data) {
+        const div = document.createElement('div');
+        div.className = `mb-2 ${data.username === username ? 'text-end' : ''}`;
+        div.innerHTML = `<small class="text-muted">${data.time}</small><br>
+                         <span class="badge ${data.username === username ? 'bg-primary' : 'bg-secondary'}">${data.username}</span>
+                         <div class="d-inline-block bg-light p-2 rounded">${data.text}</div>`;
+        document.getElementById('chat-messages').appendChild(div);
+        document.getElementById('chat-messages').scrollTop = 999999;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('msg-input');
+        if(input.value.trim()) {
+            socket.emit('send_message', {username, text: input.value});
+            input.value = '';
+        }
+    }
+
+    // 3. WebRTC Звонки
+    async function startCall(targetId) {
+        document.getElementById('call-panel').style.display = 'block';
+        document.getElementById('call-target').innerText = targetId;
+
+        localStream = await navigator.mediaDevices.getUserMedia({audio: true});
+        const configuration = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
+        peerConnection = new RTCPeerConnection(configuration);
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track));
+        peerConnection.ontrack = e => document.getElementById('remote-audio').srcObject = e.streams[0];
+
+        // Обмен ICE-кандидатами
+        peerConnection.onicecandidate = e => {
+            if(e.candidate) socket.emit('call_signal', {target_room: `call_${targetId}`, type: 'candidate', candidate: e.candidate});
+        };
+
+        // Создание Offer
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit('call_signal', {target_room: `call_${targetId}`, type: 'offer', sdp: offer});
+
+        // Ожидание ответа
+        socket.on('call_signal', async (data) => {
+            if(data.type === 'answer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            } else if(data.type === 'candidate') {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        });
+    }
+
+    function endCall() {
+        if(peerConnection) peerConnection.close();
+        if(localStream) localStream.getTracks().forEach(t => t.stop());
+        document.getElementById('call-panel').style.display = 'none';
+    }
+</script>
+{% endblock %}
