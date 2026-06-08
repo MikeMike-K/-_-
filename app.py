@@ -184,8 +184,13 @@ def download_file(file_id):
     return send_from_directory(app.config['UPLOAD_FOLDER'], file_item.filename, as_attachment=True,
                                download_name=file_item.original_name)
 
-with app.app_context():
-    db.create_all()
+def init_db():
+    with app.app_context():
+        db.create_all()
+        print("✅ Таблицы базы данных проверены/созданы.")
+
+# Вызываем инициализацию сразу при импорте модуля
+init_db()
 
 if __name__ == '__main__':
 
