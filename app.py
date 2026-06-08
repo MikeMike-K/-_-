@@ -188,8 +188,7 @@ with app.app_context():
     db.create_all()
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
+
 
     # Render предоставляет порт через переменную окружения PORT
     port = int(os.environ.get('PORT', 5000))
